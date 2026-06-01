@@ -1,0 +1,18 @@
+[package]
+name = "image-reader"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# I/O and Discovery
+walkdir = "2.5"
+
+# Concurrency Pipeline
+crossbeam-channel = "0.5"
+rayon = "1.10"
+
+# High-Speed Decoding
+zune-jpeg = "0.4"
+
+#for cnn loop for microsoft onnx runtime
+ort = "2.0"
