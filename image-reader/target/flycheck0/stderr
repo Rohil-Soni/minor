@@ -1,7 +1,0 @@
-    Updating crates.io index
-error: failed to select a version for the requirement `ort = "^2.0"`
-candidate versions found which didn't match: 2.0.0-rc.12, 2.0.0-rc.11, 2.0.0-rc.10, ...
-location searched: crates.io index
-required by package `image-reader v0.1.0 (D:\GitHub\minor\image-reader)`
-help: if you are looking for the prerelease package it needs to be specified explicitly
-    ort = { version = "2.0.0-rc.12" }

@@ -1,79 +1,55 @@
-use crossbeam_channel::bounded;
-use rayon::prelude::*;
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
-use std::thread;
 use walkdir::WalkDir;
-use zune_jpeg::JpegDecoder;
 
-#[derive(Debug, Clone)]
-struct FileGroup {
-    name: String,
-    jpegpath: Option<PathBuf>,
-    rawpath: Option<PathBuf>,
+#[derive(Default, Debug)]
+struct ImgType {
+    jpeg: Option<PathBuf>,
+    raw: Option<PathBuf>,
 }
 
-#[derive(Debug)]
-struct readimage {
-    group: FileGroup,
-    pixels: Vec<u8>,
-    width: u32,
-    height: u32,
-}
+fn find_and_send(directory: &str) -> Vec<PathBuf> {
+    let mut imagegroup : HashMap<String, ImgType> = HashMap::new();
 
+    for entry in WalkDir::new(directory).into_iter().filter_map(|e| e.ok()) {
+        let path = entry.into_path();
+
+        if path.is_file() {
+            if let (Some(stem), Some(ext)) = (path.file_stem(), path.extension()) {
+                let stem_str = stem.to_string_lossy().to_string();
+                let ext_str = ext.to_string_lossy().to_lowercase();
+
+                let pair = imagegroup.entry(stem_str).or_default();
+
+                match ext_str.as_str() {
+                    "jpg" | "jpeg" => pair.jpeg = Some(path),
+                    "raw" => pair.raw = Some(path),
+                    _ => {}
+            }
+        }
+    }
+   }
+    let mut result = Vec::new();
+    for (_, pair) in imagegroup {
+        if let Some(path) = pair.jpeg {
+            result.push(path);
+        }
+        if let Some(path) = pair.raw {
+            result.push(path);
+        }
+    }
+    result
+}
 
 fn main() {
-    println!("Photoholic Image Reader Starting (CPU Mode)");
+    let target = "";
+    println!("Scanning directory: {}", target);
 
-    let (tx_discovery, rx_decode) = bounded::<FileGroup>(64);
-    let (tx_decode, rx_inference) = bounded::<readimage>(64);
-    let targetdir = "./images";
+    let image_paths = find_and_send(target);
 
-    // Spawn the discovery thread
-    let discovery_handle = thread::spawn(move || {
-        println!("[Stage 1] Starting file discovery in '{}'", targetdir);
-        
-        let mut file_groups: HashMap<String, FileGroup> = HashMap::new();
-        
-        for entry in WalkDir::new(targetdir).into_iter().filter_map(|e| e.ok()) {
-            
-            let path = entry.path();
-            
-            if !path.is_file() {
-                continue;
-            }
-            
-            let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-            let basename = path.file_stem().and_then(|n| n.to_str()).unwrap_or("").to_string();
-            
-            if ext = = "jpg" || ext == "jpeg" {
-                let group = file_groups.entry(basename.clone()).or_insert(FileGroup {
-                    name: basename.clone(),
-                    jpegpath: None,
-                    rawpath: None,
-                });
-
-                if ext == "arw" {
-                    group.rawpath = Some(path.to_path_buf());
-                } 
-                else {
-                    group.jpegpath = Some(path.to_path_buf());
-                }
-            }
-        }
-
-        let mut count = 0;
-        for (_, group) in file_groups {
-
-            if tx_discovery.send(group).is_err() {
-                println!("[Stage 1] Discovery channel closed, stopping discovery thread.");
-                break;
-            }
-            count += 1;
-        }
-
-        println!("[Stage 1] Discovered {} files.", count);
-        drop(tx_discovery);
-    });
+    println!("Found {} image files:", image_paths.len());
+    
+    for file in image_paths {
+        println!(" - {:?}", file.display());
+    }
 }
