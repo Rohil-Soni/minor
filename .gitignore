@@ -1,45 +1,12 @@
-<<<<<<< HEAD
 __pycache__/
 *.py[cod]
 *$py.class
 
 # Virtual environments and environment files
-=======
-# Python
-__pycache__/
-*.py[cod]
->>>>>>> 5431960 (feat(engine): calculate sharpness scores in Rust for Python analysis)
 .venv/
 venv/
 env/
 .env
-<<<<<<< HEAD
-.env.*
-!.env.example
-
-# Packaging
-build/
-dist/
-*.egg-info/
-.eggs/
-
-# Testing and type-checking caches
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-htmlcov/
-
-# IDEs and editors
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-=======
 
 # Rust
 target/
@@ -56,4 +23,3 @@ build/
 .idea/
 .DS_Store
 Thumbs.db
->>>>>>> 5431960 (feat(engine): calculate sharpness scores in Rust for Python analysis)
