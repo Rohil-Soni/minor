@@ -1,12 +1,19 @@
+<<<<<<< HEAD
 __pycache__/
 *.py[cod]
 *$py.class
 
 # Virtual environments and environment files
+=======
+# Python
+__pycache__/
+*.py[cod]
+>>>>>>> 5431960 (feat(engine): calculate sharpness scores in Rust for Python analysis)
 .venv/
 venv/
 env/
 .env
+<<<<<<< HEAD
 .env.*
 !.env.example
 
@@ -32,3 +39,21 @@ htmlcov/
 # OS files
 .DS_Store
 Thumbs.db
+=======
+
+# Rust
+target/
+image-reader/discovered_images.txt
+image-reader/filtered_images.json
+
+# Node / frontend dependencies and builds
+node_modules/
+dist/
+build/
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+>>>>>>> 5431960 (feat(engine): calculate sharpness scores in Rust for Python analysis)
