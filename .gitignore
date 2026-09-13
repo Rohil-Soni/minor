@@ -10,6 +10,7 @@ env/
 
 # Rust
 target/
+image-reader/Cargo.lock
 image-reader/discovered_images.txt
 image-reader/filtered_images.json
 

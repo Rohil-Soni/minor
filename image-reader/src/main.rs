@@ -8,6 +8,8 @@ use exif::{In, Reader, Tag};
 use rayon::prelude::*;
 use image::{GenericImageView, Pixel};
 
+mod arw;
+
 #[derive(Default, Debug, serde::Serialize)]
 struct ImgPair {
     jpeg: Option<PathBuf>,
@@ -57,7 +59,16 @@ fn find_and_send(directory: &str) -> Vec<ImgPair> {
 
 fn calculate_sharpness(path: &PathBuf) -> Option<f64>{
 
-    let img = image::open(path).ok()?.into_luma8();
+    let ext = path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+
+    let img = if ext == "arw" {
+
+        arw::extract_luma_from_arw(path)?
+
+    } else {
+        image::open(path).ok()?.into_luma8()
+    };
+
     let (width, height) = img.dimensions();
 
     let mut laplacian_values = Vec::with_capacity((width*height) as usize);
@@ -135,7 +146,7 @@ fn extract_metadata(pair: &ImgPair) -> Option<ImageRecord> {
 }
 
 fn main() {
-    let target = "D:\\Rakhi";
+    let target = "D:\\Photos\\DSC05262.ARW";
     println!("Scanning directory: {}", target);
 
     let image_paths = find_and_send(target);
