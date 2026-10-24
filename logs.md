@@ -239,3 +239,23 @@ Summary: first run on a real shoot. Grouping defaults confirmed; blur filter red
 - Result: rejects **106 (8.7%)**; 315 rescued (moon series, night portraits, statue/poles), 0 newly rejected; Rust matches the prototype (Spearman 0.9998); engine stage 75 s → 56 s.
 - Rust unit tests: flat image = 0, tiny images don't panic (the old loop underflowed on height 0), blur lowers the score, a sharp patch on a plain background scores like full texture, downscale keeps aspect.
 - Borderline: a slightly soft moon (DSC_9778) and a sharp one (DSC_9795) both score 10.2; they are in the same burst, so selection decides.
+
+## 2026-10-24 — GUI (branch `gui`)
+
+Summary: local web GUI to review a finished run: all groups with all their photos, and a side-by-side compare of any photo against its group's pick.
+
+### Changes
+- `app/server.py`:
+  - stdlib `ThreadingHTTPServer` + Pillow, no new dependencies
+  - binds 127.0.0.1 only; serves only photos listed in the run (looked up by id, so no path traversal)
+  - thumbnails (360 px) and previews (2048 px) are cached in `<run>/gui_cache/`; originals are served for 100% zoom
+  - `POST /api/pick` saves manual picks to `<run>/user_picks.json` (choosing the automatic pick again removes the override); nothing is moved or deleted
+- `app/static/` (vanilla HTML/CSS/JS, no build step, so it can be wrapped in Tauri later):
+  - **Groups view**: every group with all photos together, pick first (gold) and rank badges; filters (bursts / all / singles / changed by you), sort (time / size), file-name search, thumbnail size
+  - **Compare view**: pick vs any photo; zoom/pan synced on normalised image coordinates (wheel zooms around the cursor, drag, double-click, `Z` 100% from the original file, `F` fit); score table with ▲/▼ vs the pick; filmstrip; keyboard (← → photo, ↑ ↓ group, P pick, Esc)
+  - **Rejected view**: blur rejects sorted by score, with a full-size viewer
+- `ai/tests/test_gui_server.py`: 14 tests on a real pipeline run (payload, resized/original images, 404/400 for unknown ids, traversal and bad sizes, pick save/validate/restore/restart).
+- Checked in the browser on the 1,221-photo run: no console errors.
+
+### Found while testing
+- The 54-photo moon group spans **4.1 days**: moon shots from different nights pass the "cosine ≥ 0.92 at any time" rule. Pending decision: cap that rule by time when both photos have capture times (e.g. same session / within N hours).

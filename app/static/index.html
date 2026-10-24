@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photoholic</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23e8b04b'/%3E%3Ccircle cx='16' cy='17' r='7' fill='none' stroke='%23141518' stroke-width='3'/%3E%3Crect x='10' y='6' width='8' height='4' rx='1' fill='%23141518'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <span class="brand-name">Photoholic</span>
+    </div>
+    <div id="stats" class="stats" aria-live="polite"></div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" role="tab" data-view="groups" aria-selected="true">Groups <span id="count-groups" class="pill"></span></button>
+      <button class="tab" role="tab" data-view="rejected" aria-selected="false">Rejected <span id="count-rejected" class="pill"></span></button>
+    </nav>
+  </header>
+
+  <div id="model-banner" class="banner" hidden></div>
+
+  <section id="view-groups" class="view">
+    <div class="toolbar">
+      <div class="segmented" role="radiogroup" aria-label="Which groups">
+        <button data-filter="multi" class="active">Bursts <span id="n-multi"></span></button>
+        <button data-filter="all">All <span id="n-all"></span></button>
+        <button data-filter="single">Singles <span id="n-single"></span></button>
+        <button data-filter="changed">Changed by you <span id="n-changed"></span></button>
+      </div>
+      <label class="field">Sort
+        <select id="sort">
+          <option value="time">Capture time</option>
+          <option value="size">Group size</option>
+        </select>
+      </label>
+      <label class="field grow">
+        <input id="search" type="search" placeholder="Find a photo, e.g. DSC_9794" autocomplete="off">
+      </label>
+      <label class="field">Size
+        <input id="zoom" type="range" min="110" max="320" value="170" aria-label="Thumbnail size">
+      </label>
+    </div>
+    <div id="groups" class="groups"></div>
+    <p id="groups-empty" class="empty" hidden>No groups match.</p>
+  </section>
+
+  <section id="view-rejected" class="view" hidden>
+    <p class="hint">Photos the Rust engine dropped as blurry (sharpest region scored below the threshold). Click to inspect at full size.</p>
+    <div id="rejected" class="grid"></div>
+  </section>
+
+  <!-- Compare: any photo vs. its group's pick -->
+  <div id="compare" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="cmp-title">
+    <div class="cmp-head">
+      <button class="icon-btn" data-act="prev-group" title="Previous group (↑)" aria-label="Previous group">‹‹</button>
+      <div class="cmp-title-wrap">
+        <h2 id="cmp-title"></h2>
+        <span id="cmp-sub" class="muted"></span>
+      </div>
+      <button class="icon-btn" data-act="next-group" title="Next group (↓)" aria-label="Next group">››</button>
+      <div class="spacer"></div>
+      <div class="zoom-ctl" role="group" aria-label="Zoom">
+        <button data-act="fit" title="Fit (F)">Fit</button>
+        <button data-act="one" title="100% (Z)">100%</button>
+        <button data-act="zoom-out" aria-label="Zoom out">−</button>
+        <span id="zoom-label" class="zoom-label">fit</span>
+        <button data-act="zoom-in" aria-label="Zoom in">+</button>
+      </div>
+      <button id="make-pick" class="primary" data-act="pick" title="Make the photo on the right this group's pick (P)">Make this the pick</button>
+      <button class="icon-btn" data-act="close" title="Close (Esc)" aria-label="Close">✕</button>
+    </div>
+    <div id="panes" class="panes">
+      <div class="pane" data-side="pick">
+        <div class="pane-label"><span class="tag gold">PICK</span> <span class="pane-name"></span></div>
+        <div class="viewport"><img alt="" draggable="false"><div class="spinner" hidden></div></div>
+        <table class="metrics"></table>
+      </div>
+      <div class="pane" data-side="other">
+        <div class="pane-label"><span class="tag">COMPARING</span> <span class="pane-name"></span></div>
+        <div class="viewport"><img alt="" draggable="false"><div class="spinner" hidden></div></div>
+        <table class="metrics"></table>
+      </div>
+    </div>
+    <div id="filmstrip" class="filmstrip" role="listbox" aria-label="Photos in this group"></div>
+    <div class="keys muted">← → photo · ↑ ↓ group · wheel/drag zoom &amp; pan (synced) · Z 100% · F fit · P make pick · Esc close</div>
+  </div>
+
+  <!-- Single photo (rejected) -->
+  <div id="lightbox" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="lb-title">
+    <div class="cmp-head">
+      <h2 id="lb-title"></h2>
+      <span id="lb-sub" class="muted"></span>
+      <div class="spacer"></div>
+      <div class="zoom-ctl" role="group" aria-label="Zoom">
+        <button data-act="fit">Fit</button>
+        <button data-act="one">100%</button>
+      </div>
+      <button class="icon-btn" data-act="close" aria-label="Close">✕</button>
+    </div>
+    <div class="panes single">
+      <div class="pane"><div class="viewport"><img alt="" draggable="false"><div class="spinner" hidden></div></div></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

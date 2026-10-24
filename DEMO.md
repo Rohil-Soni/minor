@@ -15,7 +15,10 @@ ai\.venv\Scripts\python.exe ai\show_results.py runs\demo                # summar
 ai\.venv\Scripts\python.exe ai\show_results.py runs\demo --group 0       # one group, ranked
 ai\.venv\Scripts\python.exe ai\show_results.py runs\demo --rejected     # blurry / unreadable
 
-# 3. open the per-photo report and charts
+# 3. review it in the GUI: all groups, compare any photo with its group's pick
+ai\.venv\Scripts\python.exe app\server.py runs\demo
+
+# 4. open the per-photo report and charts
 start runs\demo\report.csv
 start runs\demo\charts
 ```

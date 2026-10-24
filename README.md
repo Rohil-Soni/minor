@@ -157,6 +157,20 @@ ai\.venv\Scripts\python.exe ai\show_results.py "D:\Photos\Trip\.photoholic" --re
 ```
 For a step-by-step demo (e.g. for evaluation) see [DEMO.md](DEMO.md).
 
+### GUI: review groups and compare with the pick
+```powershell
+ai\.venv\Scripts\python.exe app\server.py "D:\Photos\Trip\.photoholic"
+```
+Opens `http://127.0.0.1:8765/` in your browser (local only, nothing is uploaded):
+- **Groups**: every group with all of its photos together, the pick first (gold). Filter
+  bursts / singles / changed, sort by time or size, search a file name.
+- **Compare**: click any photo to see it side by side with its group's pick. Zoom and pan
+  are synced (wheel, drag, `Z` = 100%, `F` = fit), scores show ▲/▼ against the pick, the
+  filmstrip switches photos (`←` `→`), `↑` `↓` change group.
+- **Make this the pick** (`P`) saves your choice to `user_picks.json` in the run folder;
+  photos are never moved or deleted.
+- **Rejected**: the photos dropped as blurry, to double-check the filter.
+
 ### 5. Tests
 ```powershell
 ai\.venv\Scripts\python.exe -m pip install -r ai\requirements-dev.txt -r ai\requirements-train.txt
