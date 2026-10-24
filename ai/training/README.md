@@ -8,8 +8,8 @@ All commands run from the `ai/` folder.
 |------|---------|-------|
 | Pick subset + write splits | `python -m training.dataset_ava prepare ...` | 2 |
 | Sanity-check a batch | `python -m training.dataset_ava check ...` | 2 |
-| Train | `python -m training.train ...` | 3 |
-| Evaluate | `python -m training.evaluate ...` | 3 |
+| Train (resumable) | `python -m training.train ...` | 3 |
+| Evaluate on test | `python -m training.evaluate ...` | 3 |
 | Export ONNX | `python -m training.export_onnx ...` | 4 |
 
 ## Expected data layout
@@ -59,9 +59,46 @@ standard test list if you pass `--test-list`.
 
    `check` must print `batch images: [8, 3, 224, 224]` and distribution sums of 1.000000.
 
-6. Training (Phase 3) will write checkpoints to `/kaggle/working/checkpoints`. Download that
-   folder (or *Save Version → Save & Run All* to keep it as notebook output) before the session ends.
-   Kaggle sessions stop after 12 h.
+6. Train (about 5 head epochs + up to 12 full epochs; on a T4 roughly 5–10 min per epoch for 36k images):
+
+   ```bash
+   !python -m training.train \
+       --splits /kaggle/working/ava_splits \
+       --images /kaggle/input/<dataset>/images \
+       --out    /kaggle/working/checkpoints \
+       --batch-size 64 --num-workers 4
+   ```
+
+   - Writes `last.pt` every epoch, `best.pt` when val EMD improves, and `train_log.csv`.
+   - Out of GPU memory → `--batch-size 32`. Uses one GPU (on "T4 x2" the second one sits idle).
+   - Session timed out? Re-run the **same command** with `--resume auto`. It continues from
+     `last.pt` with the same lr schedule and shuffling. To split on purpose, add `--stop-after N`.
+   - Keep the outputs: *Save Version → Save & Run All*, or download `/kaggle/working/checkpoints`.
+     Kaggle sessions stop after 12 h, and `/kaggle/working` is wiped when an interactive session ends.
+
+7. Evaluate on the held-out test split:
+
+   ```bash
+   !python -m training.evaluate \
+       --checkpoint /kaggle/working/checkpoints/best.pt \
+       --splits /kaggle/working/ava_splits \
+       --images /kaggle/input/<dataset>/images \
+       --out    /kaggle/working/metrics.json
+   ```
+
+   Prints SRCC, PLCC, binary accuracy (mean ≥ 5) and EMD. Target: **SRCC ≥ 0.50**
+   (about 0.55–0.65 is normal for MobileNetV2 on a 40k subset). Below 0.45 something is wrong;
+   check the labels and normalisation. Copy `metrics.json` to `ai/models/metrics.json` in the repo.
+
+### Training defaults (plan §5 Phase 3)
+
+| Stage | Epochs | Trainable | Learning rate |
+|-------|--------|-----------|---------------|
+| A | `--epochs-head 5` | head only (backbone + BatchNorm frozen) | Adam 1e-3 |
+| B | `--epochs-full 12` | everything | backbone 5e-6, head 1e-4, cosine decay; early stop after 3 epochs with no val gain |
+
+AMP (float16) and channels-last are on automatically on CUDA (`--no-amp` to disable).
+`--backbone efficientnet_b0` swaps the backbone.
 
 ## Google Colab
 

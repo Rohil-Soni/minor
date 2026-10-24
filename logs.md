@@ -99,3 +99,23 @@ Summary: data pipeline for training the aesthetic model on a random 40k AVA subs
 ### Decisions / Rationale
 - Subset of 30–50k (default 40k) instead of full AVA (~32 GB); training on Kaggle, where AVA is already hosted, so nothing large is downloaded locally.
 - On Kaggle/Colab, install `requirements.txt` + `onnx` only: their CUDA torch must not be replaced by `requirements-train.txt`.
+
+## 2026-10-24 — Model & training (Phase 3)
+
+Summary: NIMA model, EMD loss, a resumable two-stage training loop for Kaggle/Colab GPUs, and test-set evaluation.
+
+### Changes
+- `training/model.py`: `NIMA`, a pretrained backbone (`mobilenet_v2` default, `efficientnet_b0` option) → global average pool → **embedding (1280)** → Dropout(0.75) → Linear(10) → softmax. `forward` returns `(dist, embedding)`, with the embedding taken before dropout. Also `dist_mean_std` and `load_checkpoint`. MobileNetV2 has 2.24M params.
+- `training/losses.py`: squared EMD (r=2) on the CDFs, computed in float32 so it is AMP-safe.
+- `training/train.py`:
+  - Stage A: head only, frozen backbone and BatchNorm, Adam 1e-3.
+  - Stage B: full network, backbone 5e-6, head 1e-4, cosine decay, early stop after 3 epochs without val improvement.
+  - AMP and channels-last on CUDA; everything seeded.
+  - `last.pt` saved every epoch via temp file + rename; `best.pt` on val-EMD improvement; `train_log.csv` per epoch.
+  - `--resume auto` keeps the optimizer, scheduler and scaler state, and shuffling is seeded per epoch, so a resumed run matches an uninterrupted one. `--stop-after N` splits a run across sessions. Changing schedule args on resume gives a warning.
+- `training/evaluate.py`: SRCC, PLCC, binary accuracy (mean ≥ 5) and EMD on a split; writes `metrics.json` and warns below SRCC 0.45/0.50.
+- `training/README.md`: Kaggle train/evaluate steps and the defaults table.
+- Tests: 12 new (EMD values, mean/std, model shapes for both backbones, embedding-before-dropout, freezing, metrics, a CPU train → interrupt → resume → evaluate smoke run). 27 total.
+
+### Pending
+- Real training run on Kaggle (40k subset) and `ai/models/metrics.json` with SRCC ≥ 0.50.
