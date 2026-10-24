@@ -154,6 +154,15 @@ def test_picks_survive_a_restart(run_dir):
     (run_dir / server.PICKS_NAME).unlink()
 
 
+def test_stale_picks_after_a_rerun_are_ignored(run_dir):
+    groups = server.Run(run_dir).results["clusters"]
+    stale = {str(groups[0]["cluster_id"]): groups[1]["best_id"], "999": "img_000001"}
+    (run_dir / server.PICKS_NAME).write_text(json.dumps({"picks": stale}), encoding="utf-8")
+    payload = server.Run(run_dir).payload()
+    assert all(g["pick_id"] == g["best_id"] for g in payload["groups"])
+    (run_dir / server.PICKS_NAME).unlink()
+
+
 def test_missing_run_is_a_clear_error(tmp_path):
     with pytest.raises(FileNotFoundError, match="Run ai/run_pipeline.py first"):
         server.Run(tmp_path)

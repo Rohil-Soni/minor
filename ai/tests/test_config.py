@@ -14,6 +14,7 @@ def test_defaults_match_plan():
     assert cfg.burst_gap_s == 10.0
     assert cfg.sim_threshold_timed == 0.80
     assert cfg.sim_threshold_untimed == 0.92
+    assert cfg.session_gap_h == 3.0
     assert (cfg.w_sharpness, cfg.w_aesthetic) == (0.4, 0.6)
     assert cfg.action == "none"
 
@@ -37,6 +38,7 @@ def test_toml_then_overrides(tmp_path: Path):
         ({"action": "delete"}, "action must be one of"),
         ({"sim_threshold_timed": 1.5}, "cosine similarity"),
         ({"min_sharpness": -1}, "min_sharpness"),
+        ({"session_gap_h": 0.001}, "must cover burst_gap_s"),
     ],
 )
 def test_invalid_values_rejected(kwargs, match):

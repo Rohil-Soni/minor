@@ -258,4 +258,17 @@ Summary: local web GUI to review a finished run: all groups with all their photo
 - Checked in the browser on the 1,221-photo run: no console errors.
 
 ### Found while testing
-- The 54-photo moon group spans **4.1 days**: moon shots from different nights pass the "cosine ≥ 0.92 at any time" rule. Pending decision: cap that rule by time when both photos have capture times (e.g. same session / within N hours).
+- The 54-photo moon group spans **4.1 days**: moon shots from different nights pass the "cosine ≥ 0.92 at any time" rule.
+
+## 2026-10-24 — Grouping: one session cap for near-duplicates (branch `gui`)
+
+Summary: the 0.92 near-duplicate rule no longer joins photos from different sessions (decided by Rohil).
+
+### Changes
+- New setting `session_gap_h` (default **3 h**, CLI `--session-gap`): when both photos have capture times, the `sim_threshold_untimed` rule only joins them if they are ≤ 3 h apart. Photos without a capture time keep the old behaviour. Must be ≥ `burst_gap_s`.
+- GUI server ignores saved picks that no longer belong to their group (groups change when the pipeline is re-run).
+- Tests: the 3 h boundary, same view two days apart, three nights of moon frames → one group per night (one group with `session_gap_h=72`), untimed still grouped, config validation, stale picks.
+
+### Result on the 1,221-photo run
+- The 4.1-day moon group became one group per night (e.g. 09-27: 4, 09-28: 11, 09-29: 13, 10-01: 5 photos), each with its own pick.
+- Longest group span is now 5.4 min. Groups 454 → 459; nothing else changed noticeably.

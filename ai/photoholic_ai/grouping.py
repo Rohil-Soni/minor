@@ -4,7 +4,9 @@ Two images are joined (union-find, so groups chain A~B~C) when either
 
 - both have capture times ``<= burst_gap_s`` apart **and** cosine similarity
   ``>= sim_threshold_timed``, or
-- cosine similarity ``>= sim_threshold_untimed`` (no times, or far apart in time).
+- cosine similarity ``>= sim_threshold_untimed`` (re-takes / near-duplicates), but when both
+  have capture times only if they are ``<= session_gap_h`` apart, so the same view shot on
+  different days (e.g. the moon every night) is not merged into one group.
 
 Embeddings are L2-normalised, so cosine similarity is a dot product. Images that match
 nothing form groups of one.
@@ -81,8 +83,12 @@ def _union_find_labels(
     for start in range(0, n, _BLOCK):
         rows = slice(start, min(start + _BLOCK, n))
         sim = embeddings[rows] @ embeddings.T
-        close = np.abs(t[rows, None] - t[None, :]) <= cfg.burst_gap_s  # NaN -> False
-        edges = (close & (sim >= cfg.sim_threshold_timed)) | (sim >= cfg.sim_threshold_untimed)
+        dt = np.abs(t[rows, None] - t[None, :])  # NaN when either photo has no time
+        close = dt <= cfg.burst_gap_s  # NaN -> False
+        other_session = dt > cfg.session_gap_h * 3600  # NaN -> False: untimed stays eligible
+        edges = (close & (sim >= cfg.sim_threshold_timed)) | (
+            (sim >= cfg.sim_threshold_untimed) & ~other_session
+        )
         for i, j in zip(*np.nonzero(edges), strict=True):
             i += start
             if i < j:

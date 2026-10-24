@@ -93,7 +93,17 @@ class Run:
         if not path.is_file():
             return {}
         data = json.loads(path.read_text(encoding="utf-8"))
-        return {str(k): v for k, v in data.get("picks", {}).items()}
+        members = {
+            str(c["cluster_id"]): {m["id"] for m in c["members"]} for c in self.results["clusters"]
+        }
+        picks = {}
+        for group, image_id in data.get("picks", {}).items():
+            if image_id in members.get(str(group), ()):
+                picks[str(group)] = image_id
+            else:  # the pipeline was re-run and groups changed
+                log.warning("ignoring saved pick %s for group %s: not in that group any more",
+                            image_id, group)  # fmt: skip
+        return picks
 
     def _member(self, m: dict[str, Any]) -> dict[str, Any]:
         rec = self.records.get(m["id"], {})

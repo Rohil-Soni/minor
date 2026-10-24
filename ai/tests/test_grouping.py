@@ -47,7 +47,10 @@ def test_two_tight_clusters_and_outlier():
         (0.85, 3.0, True),  # burst: close in time, moderately similar
         (0.85, 60.0, False),  # same similarity, too far apart in time
         (0.85, None, False),  # no time: needs the stricter threshold
-        (0.95, 3600.0, True),  # near-duplicate hours apart
+        (0.95, 3600.0, True),  # near-duplicate re-take an hour later, same session
+        (0.95, 2.9 * 3600, True),
+        (0.95, 3.1 * 3600, False),  # beyond the 3 h session gap
+        (0.99, 2 * 86400, False),  # same view two days later stays separate
         (0.95, None, True),
         (0.70, 1.0, False),  # close in time but a different scene
     ],
@@ -57,6 +60,26 @@ def test_time_gated_thresholds(sim, dt, grouped):
     times = [1000.0, None if dt is None else 1000.0 + dt]
     groups = group_images(["a", "b"], emb, times)
     assert (len(groups) == 1) is grouped
+
+
+def test_same_view_on_different_nights_gets_one_group_per_night():
+    # the moon: near-identical frames, a few per night, three nights apart
+    moon = unit(seed=7)
+    emb = jitter(moon, 9, 0.005, seed=3)
+    assert (emb @ emb.T).min() > 0.99
+    nights = [n * 86400 + 21 * 3600 + k * 40.0 for n in range(3) for k in range(3)]
+    ids = [f"night{n}_{k}" for n in range(3) for k in range(3)]
+
+    groups = group_images(ids, emb, nights)
+    assert sorted(map(sorted, groups)) == [[f"night{n}_{k}" for k in range(3)] for n in range(3)]
+    # a longer session setting merges them again
+    assert len(group_images(ids, emb, nights, Config(session_gap_h=72))) == 1
+
+
+def test_untimed_photos_still_group_by_similarity():
+    emb = pair_with_similarity(0.95)
+    assert len(group_images(["a", "b"], emb, [1000.0, None])) == 1
+    assert len(group_images(["a", "b"], emb, [None, None])) == 1
 
 
 def test_burst_gap_from_config():

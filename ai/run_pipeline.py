@@ -55,6 +55,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--burst-gap", type=float, dest="burst_gap_s", help="seconds")
     p.add_argument("--sim", type=float, dest="sim_threshold_timed", help="cosine, shots in a burst")
     p.add_argument("--sim-untimed", type=float, dest="sim_threshold_untimed")
+    p.add_argument(
+        "--session-gap",
+        type=float,
+        dest="session_gap_h",
+        help="hours; near-duplicates further apart than this are never grouped (default 3)",
+    )
     p.add_argument("--w-sharp", type=float, dest="w_sharpness")
     p.add_argument("--w-aes", type=float, dest="w_aesthetic")
     p.add_argument("--action", choices=ACTIONS, help="none (default), copy best, move rejects")
@@ -107,7 +113,7 @@ def run(argv: list[str] | None = None) -> bridge.Record:
     overrides = {
         k: getattr(args, k)
         for k in ("min_sharpness", "burst_gap_s", "sim_threshold_timed", "sim_threshold_untimed",
-                  "w_sharpness", "w_aesthetic", "action", "batch_size")
+                  "session_gap_h", "w_sharpness", "w_aesthetic", "action", "batch_size")
     }  # fmt: skip
     cfg = load_config(args.config, **overrides)
     timings: dict[str, float] = {}

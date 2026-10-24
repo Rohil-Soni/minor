@@ -32,6 +32,9 @@ class Config:
     burst_gap_s: float = 10.0
     sim_threshold_timed: float = 0.80
     sim_threshold_untimed: float = 0.92
+    # the untimed rule only joins photos taken within this many hours of each other when both
+    # have capture times, so the same view on different days (e.g. the moon) stays separate
+    session_gap_h: float = 3.0
     w_sharpness: float = 0.4
     w_aesthetic: float = 0.6
     action: str = "none"
@@ -43,6 +46,11 @@ class Config:
             raise ValueError("input_size and batch_size must be positive")
         if self.burst_gap_s < 0:
             raise ValueError(f"burst_gap_s must be >= 0, got {self.burst_gap_s}")
+        if self.session_gap_h * 3600 < self.burst_gap_s:
+            raise ValueError(
+                f"session_gap_h ({self.session_gap_h} h) must cover burst_gap_s "
+                f"({self.burst_gap_s} s)"
+            )
         for name in ("sim_threshold_timed", "sim_threshold_untimed"):
             value = getattr(self, name)
             if not -1.0 <= value <= 1.0:
