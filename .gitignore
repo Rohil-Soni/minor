@@ -21,6 +21,7 @@ image-reader/filtered_images.json
 
 # Model weights, checkpoints and datasets
 ai/models/*.onnx
+ai/models/aesthetic_*.json
 ai/checkpoints/
 ai/data/
 

@@ -119,3 +119,19 @@ Summary: NIMA model, EMD loss, a resumable two-stage training loop for Kaggle/Co
 
 ### Pending
 - Real training run on Kaggle (40k subset) and `ai/models/metrics.json` with SRCC ≥ 0.50.
+
+## 2026-10-24 — ONNX export (Phase 4)
+
+Summary: export the model to a single ONNX file plus a sidecar JSON that pins the preprocessing.
+
+### Changes
+- `training/export_onnx.py`:
+  - input `input` [N,3,224,224]; outputs `dist` [N,10] and `embedding` [N,1280]; dynamic batch, opset 17
+  - uses the dynamo exporter (needs `onnxscript`, added to `requirements-train.txt`)
+  - `onnx.checker` + onnxruntime parity check (batch of 8 and batch of 1; fails above 1e-4)
+- Sidecar `aesthetic_v1.json`: model name/version/backbone, `trained` flag, sha256, opset, I/O shapes, preprocessing (size, bilinear antialias, RGB, NCHW, 1/255, ImageNet mean/std), test metrics, parity diffs.
+- `--untrained`: ImageNet backbone + random head, version `0.0.0-untrained`, `trained: false`. A placeholder so the full pipeline runs locally before the Kaggle model exists. Its embeddings (grouping) are meaningful; its aesthetic scores are not.
+- `.gitignore`: `ai/models/aesthetic_*.json` (sidecars travel with the `.onnx`).
+
+### Result
+- `aesthetic_v1.onnx` is 9.1 MB; parity max abs diff on `dist` 6e-8.
