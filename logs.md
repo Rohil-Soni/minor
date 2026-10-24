@@ -200,3 +200,24 @@ Summary: one command runs the whole pipeline and writes `results.json` + `report
 - **33.8 s end to end on CPU** (target < 60 s): engine 18.6 s, score 4.6 s, report 10.6 s (first-run matplotlib font cache).
 - 27 groups = 27 scenes, all pure, none split. All 6 blurred frames rejected; no blurred frame picked; both no-EXIF photos kept; corrupt file → `decode_error`. Reduction 71.3%.
 - These are synthetic scenes, so real-photo threshold tuning is still pending.
+
+## 2026-10-24 — Tests & docs (Phase 9)
+
+Summary: end-to-end tests and README setup/usage; the whole pipeline is verified locally.
+
+### Changes
+- `tests/test_e2e.py`:
+  - generated burst shoot (3 scenes × 2 frames + a blurred copy) → full pipeline with the dummy ONNX model
+  - one test uses handmade engine output; one runs the **real Rust binary** with `--action copy` and checks the 3 picks are copied and the originals are byte-for-byte unchanged
+  - a missing model exits with code 1
+- README Quick Start: prerequisites (GNU toolchain, Smart App Control note), build, model (trained or `--untrained` placeholder), usage, outputs, options, decision matrix, tests.
+- Report charts: no empty "rejected" legend entry (engine rejects carry no EXIF).
+
+### Result
+- 109 tests pass (pytest, ~80 s); ruff + black clean; `cargo build --release` clean.
+- Final synthetic run (100 × 24 MP): **26.4 s end to end**; 27/27 scenes grouped exactly, 6/6 blurred frames rejected, no-EXIF photos kept, corrupt file reported.
+
+### Still open
+- Train on Kaggle and export the real model (SRCC ≥ 0.50).
+- Tune grouping thresholds and weights on a real photo folder; test real Sony ARW files.
+- Decide how to share the ~9 MB model (Git LFS / GitHub Release / drive link).

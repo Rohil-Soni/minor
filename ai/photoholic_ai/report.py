@@ -134,8 +134,9 @@ def write_charts(df: pd.DataFrame, run_dir: Path) -> list[Path]:
         rejected = data["status"].str.startswith("rejected")
         ax.scatter(data.loc[~rejected, column], data.loc[~rejected, "sharpness_score"],
                    s=14, alpha=0.7, label="kept", color="#4C78A8")  # fmt: skip
-        ax.scatter(data.loc[rejected, column], data.loc[rejected, "sharpness_score"],
-                   s=14, alpha=0.7, label="rejected (blur)", color="#E45756")  # fmt: skip
+        if rejected.any():  # engine rejects carry no EXIF today, but keep them if they do
+            ax.scatter(data.loc[rejected, column], data.loc[rejected, "sharpness_score"],
+                       s=14, alpha=0.7, label="rejected (blur)", color="#E45756")  # fmt: skip
         ax.set(xlabel=label, ylabel="sharpness (Laplacian variance)",
                title=f"Sharpness vs {label}", yscale="log")  # fmt: skip
         if log_x:
