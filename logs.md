@@ -165,3 +165,18 @@ Summary: put burst / near-duplicate shots of the same moment into one group.
 
 ### Pending
 - Tune thresholds on a real photo folder (plan **[ASK]**).
+
+## 2026-10-24 — Decision matrix & selection (Phase 7)
+
+Summary: rank each group and pick one best photo, with scale-safe scores and a safe action stage.
+
+### Changes
+- `selection.py`:
+  - `rank_group`:
+    - `sharpness_norm` = min-max of `log1p(sharpness)` within the group (equal values or a group of one → 1.0)
+    - `aesthetic_norm` = `(mean − 1) / 9` on the absolute scale, clipped; missing → contributes 0
+    - `final = 0.4·sharp + 0.6·aes`
+    - ties: higher aesthetic mean → lower std → earlier capture time → id
+  - `select` builds `results.json` (§3.3), plus `unscored` (decode errors), `rejected` and stats. `reduction_pct` is the share of scored photos that are not a group's best pick.
+  - `apply_action`: `none` (default) / `copy` (best JPEG + paired ARW → `photoholic_picks/`, keeping sub-folders; re-runs skip identical files) / `move` (non-best → `photoholic_rejects/`). Never deletes or overwrites (adds `_1`, `_2`); every operation is logged to `.photoholic/actions.json` for undo.
+- Tests: plan edge cases (group of one, equal sharpness, missing aesthetic), log scaling, huge sharpness not swamping aesthetics, weights, tie-breaks, results schema/stats, action safety (none, copy idempotent, no overwrite, move).
