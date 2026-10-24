@@ -1,10 +1,79 @@
+import hashlib
+import json
 from pathlib import Path
 
 import numpy as np
 import pytest
 from PIL import Image
 
+from photoholic_ai.preprocess import IMAGENET_MEAN, IMAGENET_STD
+
 N_IMAGES = 40
+EMB_DIM = 1280
+
+
+def build_dummy_onnx(path: Path, seed: int = 0) -> Path:
+    """Tiny model with the real I/O contract: ``input`` [N,3,224,224] -> ``dist`` [N,10],
+    ``embedding`` [N,1280]. Per-channel mean colour -> linear layers. Writes the sidecar too."""
+    onnx = pytest.importorskip("onnx")
+    from onnx import TensorProto, helper, numpy_helper
+
+    rng = np.random.default_rng(seed)
+    w_dist = rng.standard_normal((3, 10)).astype(np.float32) * 3
+    w_emb = rng.standard_normal((3, EMB_DIM)).astype(np.float32)
+    b_emb = rng.standard_normal(EMB_DIM).astype(np.float32)
+    graph = helper.make_graph(
+        [
+            helper.make_node("GlobalAveragePool", ["input"], ["pooled"]),
+            helper.make_node("Flatten", ["pooled"], ["flat"], axis=1),
+            helper.make_node("MatMul", ["flat", "w_dist"], ["logits"]),
+            helper.make_node("Softmax", ["logits"], ["dist"], axis=1),
+            helper.make_node("MatMul", ["flat", "w_emb"], ["emb_raw"]),
+            helper.make_node("Add", ["emb_raw", "b_emb"], ["embedding"]),
+        ],
+        "dummy_nima",
+        [helper.make_tensor_value_info("input", TensorProto.FLOAT, ["N", 3, 224, 224])],
+        [
+            helper.make_tensor_value_info("dist", TensorProto.FLOAT, ["N", 10]),
+            helper.make_tensor_value_info("embedding", TensorProto.FLOAT, ["N", EMB_DIM]),
+        ],
+        [
+            numpy_helper.from_array(w_dist, "w_dist"),
+            numpy_helper.from_array(w_emb, "w_emb"),
+            numpy_helper.from_array(b_emb, "b_emb"),
+        ],
+    )
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", 17)])
+    model.ir_version = 8
+    onnx.checker.check_model(model)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    onnx.save(model, str(path))
+
+    sidecar = {
+        "model": {"name": "dummy", "version": "0.0.0-test", "trained": True},
+        "onnx": {
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "outputs": {"dist": ["N", 10], "embedding": ["N", EMB_DIM]},
+        },
+        "preprocess": {
+            "input_size": 224,
+            "resize": "bilinear_antialias",
+            "color": "RGB",
+            "layout": "NCHW",
+            "scale": 1 / 255,
+            "mean": list(IMAGENET_MEAN),
+            "std": list(IMAGENET_STD),
+        },
+    }
+    path.with_suffix(".json").write_text(json.dumps(sidecar), encoding="utf-8")
+    return path
+
+
+@pytest.fixture(scope="session")
+def dummy_model(tmp_path_factory) -> Path:
+    return build_dummy_onnx(tmp_path_factory.mktemp("model dir") / "dummy.onnx")
+
+
 ZERO_VOTE_ID = 9001
 MISSING_ID = 9002
 CORRUPT_ID = 9003

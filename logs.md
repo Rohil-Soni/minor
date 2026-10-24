@@ -135,3 +135,18 @@ Summary: export the model to a single ONNX file plus a sidecar JSON that pins th
 
 ### Result
 - `aesthetic_v1.onnx` is 9.1 MB; parity max abs diff on `dist` 6e-8.
+
+## 2026-10-24 — Inference runtime (Phase 5)
+
+Summary: score photos with the ONNX model, without torch (runtime only needs `requirements.txt`).
+
+### Changes
+- `bridge.py`: loads and validates `filtered_images.json` (v1 envelope; legacy v0 bare array is wrapped and given ids sorted by path), missing EXIF fields become `null`; clear `BridgeError` messages for malformed files; atomic UTF-8 JSON writes; `scored_images.json` + `embeddings.npy` write/load with an index consistency check.
+- `imaging.py`: JPEG via `Image.draft` (fast DCT-scaled decode, both sides ≥ 448 px) + EXIF orientation; ARW via the rawpy embedded preview, rotated by the raw orientation flag, with a half-size development as fallback; any failure → `ImageDecodeError`.
+- `preprocess.py`: `PreprocessSpec` read from the model sidecar (rejects unsupported settings); `to_array` resizes with Pillow bilinear, which antialiases exactly like torchvision `Resize`. A test checks it equals the training eval transform within 1e-5.
+- `scorer.py`: `Scorer` picks CUDA → DirectML → CPU providers, checks the sidecar sha256 matches the `.onnx`, decodes on a thread pool, batches of 32, computes mean/std and L2-normalised embeddings; `score_filtered` writes the §3.2 files with `status: decode_error` for broken images.
+- Tests: bridge (v0/v1/12 malformed cases), preprocess (hand-computed pixel, training parity), imaging (EXIF rotation, draft, corrupt JPEG/ARW), scorer (dummy ONNX built in the test, batching, decode errors, sha mismatch).
+
+### Result
+- 100 camera-sized JPEGs (6000×4000, 91 MB) + 1 corrupt file scored in 2.6 s on CPU (26 ms/image; target < 30 s). The corrupt file was recorded as `decode_error`.
+- Not tested: real Sony ARW files (no samples available).
