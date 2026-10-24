@@ -180,3 +180,23 @@ Summary: rank each group and pick one best photo, with scale-safe scores and a s
   - `select` builds `results.json` (§3.3), plus `unscored` (decode errors), `rejected` and stats. `reduction_pct` is the share of scored photos that are not a group's best pick.
   - `apply_action`: `none` (default) / `copy` (best JPEG + paired ARW → `photoholic_picks/`, keeping sub-folders; re-runs skip identical files) / `move` (non-best → `photoholic_rejects/`). Never deletes or overwrites (adds `_1`, `_2`); every operation is logged to `.photoholic/actions.json` for undo.
 - Tests: plan edge cases (group of one, equal sharpness, missing aesthetic), log scaling, huge sharpness not swamping aesthetics, weights, tie-breaks, results schema/stats, action safety (none, copy idempotent, no overwrite, move).
+
+## 2026-10-24 — Orchestrator CLI & report (Phase 8)
+
+Summary: one command runs the whole pipeline and writes `results.json` + `report.csv` (+ charts).
+
+### Changes
+- `ai/run_pipeline.py "<folder>"`:
+  - runs the Rust engine (`subprocess.run` with list args, no shell) → score → group → select → action → report
+  - flags: `--engine`, `--model`, `--run-dir`, `--config`, `--skip-engine`, `--min-sharpness`, `--burst-gap`, `--sim`, `--sim-untimed`, `--w-sharp/--w-aes` (one implies the other), `--action`, `--grouping`, `--batch-size`, `--charts`
+  - prints a summary with per-stage timings; clear one-line errors (exit 1) for a missing folder, engine or model, or bad JSON
+- `photoholic_ai/report.py`:
+  - `report.csv`: one row per input image incl. blur rejects and decode errors, with status (best/duplicate/rejected_…/decode_error), group, rank, all scores and numeric EXIF (`"1/250 s"` → 0.004)
+  - `--charts`: aesthetic histogram and sharpness vs ISO / shutter (matplotlib, optional)
+- `ai/main.py`: thin wrapper around `run_pipeline.main`, so `python ai/main.py <folder>` works.
+
+### Result (acceptance, synthetic burst shoot)
+- 100 × 24 MP JPEGs (648 MB), 27 scenes in bursts of 1–6, real EXIF times, 6 blurred frames, 2 without EXIF, 1 corrupt file.
+- **33.8 s end to end on CPU** (target < 60 s): engine 18.6 s, score 4.6 s, report 10.6 s (first-run matplotlib font cache).
+- 27 groups = 27 scenes, all pure, none split. All 6 blurred frames rejected; no blurred frame picked; both no-EXIF photos kept; corrupt file → `decode_error`. Reduction 71.3%.
+- These are synthetic scenes, so real-photo threshold tuning is still pending.
