@@ -78,3 +78,24 @@ py -3.12 -m venv ai\.venv
 ai\.venv\Scripts\python.exe -m pip install -r ai\requirements-dev.txt
 ai\.venv\Scripts\python.exe -m pytest ai/tests
 ```
+
+## 2026-10-24 — AVA dataset preparation (Phase 2)
+
+Summary: data pipeline for training the aesthetic model on a random 40k AVA subset, runnable on Kaggle/Colab GPUs.
+
+### Changes
+- `training/dataset_ava.py`:
+  - parses `AVA.txt` → normalised 10-bin vote distributions (drops zero-vote rows and duplicates)
+  - finds `<id>.jpg` recursively under the image folder
+  - fixed-seed random subset (default 40k), skipping missing files and images that fail to decode
+  - 90/5/5 train/val/test split, or the standard AVA test list via `--test-list`
+  - writes `{train,val,test}.csv` (paths relative to the image folder, so splits move between machines) and `meta.json`
+  - `AVADataset` + `load_splits` for torch; CLI commands `prepare` and `check`
+- Transforms: train = resize 256 → random crop 224 → flip; eval = resize straight to 224 (no crop, composition matters). Inference must use the eval transforms.
+- `photoholic_ai/preprocess.py` now holds `INPUT_SIZE`, `IMAGENET_MEAN`, `IMAGENET_STD`, the one definition training imports and the ONNX sidecar will carry.
+- `training/README.md`: Kaggle / Colab / local setup.
+- `tests/test_dataset_ava.py`: 7 tests on a synthetic AVA (missing, corrupt and zero-vote cases, determinism, test list, batch shapes).
+
+### Decisions / Rationale
+- Subset of 30–50k (default 40k) instead of full AVA (~32 GB); training on Kaggle, where AVA is already hosted, so nothing large is downloaded locally.
+- On Kaggle/Colab, install `requirements.txt` + `onnx` only: their CUDA torch must not be replaced by `requirements-train.txt`.
