@@ -150,3 +150,18 @@ Summary: score photos with the ONNX model, without torch (runtime only needs `re
 ### Result
 - 100 camera-sized JPEGs (6000×4000, 91 MB) + 1 corrupt file scored in 2.6 s on CPU (26 ms/image; target < 30 s). The corrupt file was recorded as `decode_error`.
 - Not tested: real Sony ARW files (no samples available).
+
+## 2026-10-24 — Grouping (Phase 6)
+
+Summary: put burst / near-duplicate shots of the same moment into one group.
+
+### Changes
+- `grouping.py`:
+  - `parse_capture_time`: `DateTimeOriginal` + `SubSecTimeOriginal` (e.g. `"45"` → +0.45 s), falling back to `DateTime`; accepts EXIF `:` and the older `-` format; `0000:00:00` placeholders → `None`.
+  - `group_images` (union-find): join when both are timed, ≤ `burst_gap_s` (10 s) apart and cosine ≥ `sim_threshold_timed` (0.80), or whenever cosine ≥ `sim_threshold_untimed` (0.92).
+  - Similarity computed in 1024-row blocks so memory stays bounded; groups keep input order; singletons are groups of one.
+  - `method="agglomerative"`: sklearn average-linkage on cosine distance as an alternative (ignores time).
+- Tests: two tight clusters + an outlier → 3 groups; the time gate in 6 cases; `burst_gap_s` from config; chaining across a burst; agglomerative; capture-time parsing.
+
+### Pending
+- Tune thresholds on a real photo folder (plan **[ASK]**).
