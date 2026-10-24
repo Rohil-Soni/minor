@@ -15,14 +15,18 @@ rayon = "1.10"
 zune-jpeg = "0.4"
 
 #for cnn loop for microsoft onnx runtime
-ort = "2.0.0-rc.13"
+#optional: prebuilt binaries are MSVC-only, enable with `--features onnx`
+ort = { version = "2.0.0-rc.13", optional = true }
 
 #exif
 kamadak-exif = "0.6.1"
 
-#serialization 
+#serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+#rfc3339 timestamp for the json envelope
+humantime = "2.1"
 
 #image
 image = "0.24.7"

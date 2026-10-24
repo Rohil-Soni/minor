@@ -41,3 +41,21 @@ ort = "2.0"               # ONNX Runtime for inference
 
 ---
 Notes by Raghav
+
+## 2026-10-24 — Rust ↔ Python bridge (Phase 1)
+
+Summary: made the engine drivable from the Python orchestrator and formalised `filtered_images.json` as a versioned contract (see `AESTHETIC_NN_PLAN.md` §3.1).
+
+### Changes
+- CLI: `image-reader <INPUT_DIR> [--out <JSON_PATH>] [--min-sharpness 15.0]` replaces the hard-coded path. Default output is `<INPUT_DIR>/.photoholic/filtered_images.json`; `discovered_images.txt` is written next to it. Missing input dir → exit code 2.
+- Images without readable EXIF are kept with `null` EXIF fields (previously silently dropped).
+- Added `date_time_original` and `subsec_time_original` for burst grouping. Date fields are now the raw EXIF strings (`2026:06:01 10:15:22`).
+- Images below the threshold (`low_sharpness`) or that fail to decode (`decode_error`) are listed in a `rejected` array.
+- Output is a v1 envelope (`schema_version`, `generated_at`, `source_dir`, `min_sharpness`, `images`, `rejected`); images sorted by path with stable ids `img_000001…`.
+- Discovery skips `.photoholic/`, `photoholic_picks/`, `photoholic_rejects/` so run outputs are never re-scanned.
+- Sharpness algorithm unchanged.
+
+### Decisions / Rationale
+- `ort` is now an optional `onnx` feature (off by default): its prebuilt binaries are MSVC-only, and the team builds with the GNU toolchain (rustup `x86_64-pc-windows-gnu` + WinLibs MinGW-w64), no Visual Studio needed. Not used until Phase 10.
+- Added `humantime` for the RFC 3339 `generated_at` timestamp instead of hand-rolling date math.
+- Windows Smart App Control blocks cargo build scripts (os error 4551); it must be off to build.
