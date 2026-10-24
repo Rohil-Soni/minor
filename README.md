@@ -149,6 +149,14 @@ Decision matrix: `final = w_sharp · sharpness_norm + w_aes · aesthetic_norm`, 
 log-scaled and min-max normalised **within each group** (so its unbounded raw value cannot
 swamp the aesthetic score) and aesthetics on the absolute 1–10 scale.
 
+Show a finished run in the terminal (no re-run needed):
+```powershell
+ai\.venv\Scripts\python.exe ai\show_results.py "D:\Photos\Trip\.photoholic"            # summary + largest groups
+ai\.venv\Scripts\python.exe ai\show_results.py "D:\Photos\Trip\.photoholic" --group 3  # one group, ranked
+ai\.venv\Scripts\python.exe ai\show_results.py "D:\Photos\Trip\.photoholic" --rejected
+```
+For a step-by-step demo (e.g. for evaluation) see [DEMO.md](DEMO.md).
+
 ### 5. Tests
 ```powershell
 ai\.venv\Scripts\python.exe -m pip install -r ai\requirements-dev.txt -r ai\requirements-train.txt
