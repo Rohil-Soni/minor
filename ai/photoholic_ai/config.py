@@ -26,7 +26,7 @@ ACTIONS = ("none", "copy", "move")
 
 @dataclass(frozen=True)
 class Config:
-    min_sharpness: float = 15.0
+    min_sharpness: float = 10.0
     input_size: int = 224
     batch_size: int = 32
     burst_gap_s: float = 10.0

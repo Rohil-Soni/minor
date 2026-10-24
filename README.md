@@ -138,7 +138,7 @@ Main options (defaults in `ai/photoholic_ai/config.py`, or a `--config config.to
 
 | Flag | Default | Meaning |
 |------|---------|---------|
-| `--min-sharpness` | 15 | blur threshold (Laplacian variance) |
+| `--min-sharpness` | 10 | blur threshold: Laplacian variance of the sharpest region (2048 px copy, top 2 of 12×12 tiles) |
 | `--burst-gap` | 10 | max seconds between frames of a burst |
 | `--sim` / `--sim-untimed` | 0.80 / 0.92 | cosine similarity to group (in a burst / otherwise) |
 | `--w-sharp` / `--w-aes` | 0.4 / 0.6 | decision-matrix weights |

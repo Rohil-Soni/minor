@@ -1,4 +1,5 @@
 use exif::{Exif, In, Reader, Tag, Value};
+use image::GrayImage;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs::File;
@@ -12,7 +13,12 @@ use walkdir::WalkDir;
 mod arw;
 
 const SCHEMA_VERSION: u32 = 1;
-const DEFAULT_MIN_SHARPNESS: f64 = 15.0;
+const DEFAULT_MIN_SHARPNESS: f64 = 10.0;
+// sharpness is measured on a downscaled copy, split into a grid; the score is the mean of the
+// sharpest tiles (tuned on a 1,221-photo Nikon D5600 set, see logs.md 2026-10-24)
+const SHARPNESS_LONG_SIDE: u32 = 2048;
+const SHARPNESS_GRID: u32 = 12;
+const SHARPNESS_TOP_TILES: usize = 2;
 const RUN_DIR: &str = ".photoholic";
 // output folders written by the python side; never re-scan them
 const SKIP_DIRS: [&str; 3] = [RUN_DIR, "photoholic_picks", "photoholic_rejects"];
@@ -20,7 +26,7 @@ const SKIP_DIRS: [&str; 3] = [RUN_DIR, "photoholic_picks", "photoholic_rejects"]
 const USAGE: &str = "usage: image-reader <INPUT_DIR> [--out <JSON_PATH>] [--min-sharpness <F64>]
 
   --out             output JSON path (default: <INPUT_DIR>/.photoholic/filtered_images.json)
-  --min-sharpness   reject images with Laplacian variance below this (default: 15.0)";
+  --min-sharpness   reject images whose sharpest region scores below this (default: 10.0)";
 
 struct Args {
     input_dir: PathBuf,
@@ -158,10 +164,32 @@ fn calculate_sharpness(path: &PathBuf) -> Option<f64> {
         image::open(path).ok()?.into_luma8()
     };
 
+    Some(region_sharpness(&downscale(img)))
+}
+
+// Same scale for every camera, and a slight focus miss only visible at 100% is not "blurry".
+fn downscale(img: GrayImage) -> GrayImage {
     let (width, height) = img.dimensions();
+    let long_side = width.max(height);
+    if long_side <= SHARPNESS_LONG_SIDE {
+        return img;
+    }
+    let scale = SHARPNESS_LONG_SIDE as f64 / long_side as f64;
+    let new_w = ((width as f64 * scale).round() as u32).max(1);
+    let new_h = ((height as f64 * scale).round() as u32).max(1);
+    image::imageops::thumbnail(&img, new_w, new_h)
+}
 
-    let mut laplacian_values = Vec::with_capacity((width * height) as usize);
-
+/// Variance of the 4-neighbour |Laplacian|, per tile on a grid, averaged over the sharpest
+/// tiles. Scoring the sharpest region (not the whole frame) keeps sharp subjects against sky,
+/// walls or a night background from being rejected as blurry.
+fn region_sharpness(img: &GrayImage) -> f64 {
+    let (width, height) = img.dimensions();
+    if width < 3 || height < 3 {
+        return 0.0;
+    }
+    let (lap_w, lap_h) = (width - 2, height - 2);
+    let mut laplacian = Vec::with_capacity((lap_w * lap_h) as usize);
     for y in 1..height - 1 {
         for x in 1..width - 1 {
             let top = img.get_pixel(x, y - 1)[0] as f64;
@@ -169,27 +197,36 @@ fn calculate_sharpness(path: &PathBuf) -> Option<f64> {
             let left = img.get_pixel(x - 1, y)[0] as f64;
             let right = img.get_pixel(x + 1, y)[0] as f64;
             let center = img.get_pixel(x, y)[0] as f64;
-            let laplacian = (top + bottom + left + right - 4.0 * center).abs();
-            laplacian_values.push(laplacian);
+            laplacian.push((top + bottom + left + right - 4.0 * center).abs());
         }
     }
 
-    let count = laplacian_values.len() as f64;
-    if count == 0.0 {
-        return Some(0.0);
+    let grid = SHARPNESS_GRID;
+    let mut tile_variances = Vec::with_capacity((grid * grid) as usize);
+    for ty in 0..grid {
+        let (y0, y1) = (ty * lap_h / grid, (ty + 1) * lap_h / grid);
+        for tx in 0..grid {
+            let (x0, x1) = (tx * lap_w / grid, (tx + 1) * lap_w / grid);
+            let count = ((y1 - y0) * (x1 - x0)) as f64;
+            if count == 0.0 {
+                continue;
+            }
+            let rows =
+                (y0..y1).map(|y| &laplacian[(y * lap_w + x0) as usize..(y * lap_w + x1) as usize]);
+            let (sum, sum_sq) = rows
+                .flatten()
+                .fold((0.0, 0.0), |(s, sq), v| (s + v, sq + v * v));
+            let mean = sum / count;
+            tile_variances.push((sum_sq / count - mean * mean).max(0.0));
+        }
     }
 
-    let mean = laplacian_values.iter().sum::<f64>() / count;
-
-    let variance = laplacian_values
-        .iter()
-        .map(|value| {
-            let diff = value - mean;
-            diff * diff
-        })
-        .sum::<f64>()
-        / count;
-    Some(variance)
+    tile_variances.sort_by(|a, b| b.total_cmp(a));
+    let top = &tile_variances[..SHARPNESS_TOP_TILES.min(tile_variances.len())];
+    if top.is_empty() {
+        return 0.0;
+    }
+    top.iter().sum::<f64>() / top.len() as f64
 }
 
 fn read_exif(path: &Path) -> Option<Exif> {
@@ -358,4 +395,63 @@ fn main() -> ExitCode {
         args.out.display()
     );
     ExitCode::SUCCESS
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::Luma;
+
+    fn checkerboard(w: u32, h: u32, cell: u32) -> GrayImage {
+        GrayImage::from_fn(w, h, |x, y| {
+            Luma([if (x / cell + y / cell) % 2 == 0 {
+                30
+            } else {
+                220
+            }])
+        })
+    }
+
+    #[test]
+    fn flat_image_scores_zero() {
+        assert_eq!(
+            region_sharpness(&GrayImage::from_pixel(300, 200, Luma([128]))),
+            0.0
+        );
+    }
+
+    #[test]
+    fn tiny_images_do_not_panic() {
+        for (w, h) in [(0, 0), (1, 1), (2, 50), (50, 2), (3, 3), (5, 40)] {
+            assert!(region_sharpness(&GrayImage::new(w, h)) >= 0.0);
+        }
+    }
+
+    #[test]
+    fn blur_lowers_score() {
+        let sharp = checkerboard(600, 400, 4);
+        let blurred = image::imageops::blur(&sharp, 3.0);
+        assert!(region_sharpness(&sharp) > 10.0 * region_sharpness(&blurred));
+    }
+
+    #[test]
+    fn sharp_subject_on_plain_background_scores_like_full_texture() {
+        // a small sharp area (e.g. the moon, a statue against the sky) is enough
+        let full = checkerboard(1200, 800, 4);
+        let mut patch = GrayImage::from_pixel(1200, 800, Luma([10]));
+        image::imageops::replace(&mut patch, &checkerboard(250, 200, 4), 500, 300);
+        let (s_full, s_patch) = (region_sharpness(&full), region_sharpness(&patch));
+        assert!(s_patch > 0.5 * s_full, "patch {s_patch} vs full {s_full}");
+    }
+
+    #[test]
+    fn downscale_caps_long_side_and_keeps_aspect() {
+        let img = downscale(GrayImage::new(6000, 4000));
+        assert_eq!(img.dimensions(), (2048, 1365));
+        assert_eq!(downscale(GrayImage::new(800, 600)).dimensions(), (800, 600));
+        assert_eq!(
+            downscale(GrayImage::new(4000, 6000)).dimensions(),
+            (1365, 2048)
+        );
+    }
 }

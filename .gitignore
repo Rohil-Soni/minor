@@ -25,7 +25,8 @@ ai/models/aesthetic_*.json
 ai/checkpoints/
 ai/data/
 
-# Photoholic run outputs (written next to the photos)
+# Photoholic run outputs (written next to the photos, or under runs/)
+runs/
 .photoholic/
 photoholic_picks/
 photoholic_rejects/

@@ -221,3 +221,21 @@ Summary: end-to-end tests and README setup/usage; the whole pipeline is verified
 - Train on Kaggle and export the real model (SRCC ≥ 0.50).
 - Tune grouping thresholds and weights on a real photo folder; test real Sony ARW files.
 - Decide how to share the ~9 MB model (Git LFS / GitHub Release / drive link).
+
+## 2026-10-24 — Tuning on real photos (Nikon D5600, 1,221 JPEGs)
+
+Summary: first run on a real shoot. Grouping defaults confirmed; blur filter redesigned (approved by Rohil).
+
+### Grouping
+- All 1,221 photos have capture times. Consecutive shots 0–5 s apart: median cosine 0.88, p10 ≈ 0.79–0.82. Random (different-scene) pairs: p99.9 = 0.903, so `sim_threshold_untimed` 0.92 is safe and 0.90 would start merging scenes.
+- Shooting style is re-takes of one subject every ~1.5–2 s with changing framing, so the defaults (10 s / 0.80 / 0.92) group **per subject** (e.g. 26 poster shots over 68 s → 1 group). Stricter settings (5 s / 0.85) split those groups into uneven fragments, not clean compositions.
+- **Decision: keep the defaults** (one keeper per subject).
+
+### Blur filter (engine, `calculate_sharpness`)
+- Problem: whole-frame Laplacian variance at full resolution rejected **421/1221 (34%)**, including sharp photos with large plain areas (statue against sky, poles, every moon shot, night portraits). Scores overlapped: a misfocused poster scored 14.5, a sharp statue 13.3, so no threshold could separate them.
+- New algorithm: greyscale → downscale to 2048 px long side → same 4-neighbour |Laplacian| → variance per tile on a 12×12 grid → **mean of the 2 sharpest tiles**. Resolution-independent; a sharp subject anywhere in the frame counts.
+- Prototyped in Python on all 1,221 photos against hand-labelled examples; separation between blurry and sharp improved from overlapping to a 6.8× gap. 2048 px means slight focus misses only visible at 100% are not "ruined"; those are still ranked within their group.
+- Default `--min-sharpness` 15 → **10** (Rust and `config.py`).
+- Result: rejects **106 (8.7%)**; 315 rescued (moon series, night portraits, statue/poles), 0 newly rejected; Rust matches the prototype (Spearman 0.9998); engine stage 75 s → 56 s.
+- Rust unit tests: flat image = 0, tiny images don't panic (the old loop underflowed on height 0), blur lowers the score, a sharp patch on a plain background scores like full texture, downscale keeps aspect.
+- Borderline: a slightly soft moon (DSC_9778) and a sharp one (DSC_9795) both score 10.2; they are in the same burst, so selection decides.

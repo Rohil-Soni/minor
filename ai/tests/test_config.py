@@ -8,7 +8,7 @@ from photoholic_ai.config import Config, load_config
 
 def test_defaults_match_plan():
     cfg = Config()
-    assert cfg.min_sharpness == 15.0
+    assert cfg.min_sharpness == 10.0
     assert cfg.input_size == 224
     assert cfg.batch_size == 32
     assert cfg.burst_gap_s == 10.0
