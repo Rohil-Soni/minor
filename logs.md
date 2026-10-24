@@ -59,3 +59,22 @@ Summary: made the engine drivable from the Python orchestrator and formalised `f
 - `ort` is now an optional `onnx` feature (off by default): its prebuilt binaries are MSVC-only, and the team builds with the GNU toolchain (rustup `x86_64-pc-windows-gnu` + WinLibs MinGW-w64), no Visual Studio needed. Not used until Phase 10.
 - Added `humantime` for the RFC 3339 `generated_at` timestamp instead of hand-rolling date math.
 - Windows Smart App Control blocks cargo build scripts (os error 4551); it must be off to build.
+
+## 2026-10-24 — Python environment & skeleton (Phase 0)
+
+Summary: set up the `ai/` package layout from `AESTHETIC_NN_PLAN.md` §4, with dependencies and a test harness.
+
+### Changes
+- `ai/photoholic_ai/` package (bridge, imaging, preprocess, scorer, grouping, selection, report) and `ai/training/` (dataset, model, losses, train, evaluate, export); modules are docstring stubs naming the phase that implements them.
+- `config.py` implemented: frozen `Config` dataclass with the §6 defaults, validation (weights sum to 1, action ∈ none/copy/move — never delete), optional `config.toml` + CLI overrides via `load_config`.
+- `requirements.txt` (runtime), `requirements-train.txt` (torch etc.), `requirements-dev.txt` (pytest, ruff, black); major versions pinned.
+- `pyproject.toml` with pytest, black and ruff config (line length 100, py310).
+- `ai/tests/test_config.py`: 8 tests.
+- `.gitignore`: model weights, checkpoints, datasets, Python caches.
+
+### Setup
+```powershell
+py -3.12 -m venv ai\.venv
+ai\.venv\Scripts\python.exe -m pip install -r ai\requirements-dev.txt
+ai\.venv\Scripts\python.exe -m pytest ai/tests
+```

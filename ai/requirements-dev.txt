@@ -1,0 +1,5 @@
+# Tests and formatting
+-r requirements.txt
+pytest>=9.1,<10
+ruff>=0.17,<1
+black>=26,<27

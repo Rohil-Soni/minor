@@ -14,6 +14,16 @@ image-reader/Cargo.lock
 image-reader/discovered_images.txt
 image-reader/filtered_images.json
 
+# Python tooling
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Model weights, checkpoints and datasets
+ai/models/*.onnx
+ai/checkpoints/
+ai/data/
+
 # Photoholic run outputs (written next to the photos)
 .photoholic/
 photoholic_picks/

@@ -1,0 +1,9 @@
+# Training / export (on top of requirements.txt).
+# This installs the CPU build of torch. For CUDA, install torch/torchvision first
+# from https://pytorch.org/get-started/locally/ and then run this file.
+-r requirements.txt
+torch>=2.14,<3
+torchvision>=0.29,<1
+onnx>=1.23,<2
+matplotlib>=3.11,<4
+scipy>=1.18,<2
